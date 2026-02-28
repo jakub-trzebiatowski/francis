@@ -47,7 +47,7 @@ export function DashboardContent({
       <div>
         <h1 className="text-3xl font-bold">{selectedProject.name}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Created {new Date(selectedProject.created_at).toLocaleDateString()}
+          Created {selectedProject.created_at.slice(0, 10)}
         </p>
       </div>
 
