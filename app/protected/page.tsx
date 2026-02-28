@@ -1,20 +1,24 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { DashboardServer } from "@/components/dashboard/DashboardServer";
-
-async function getUserInfo() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
 
 export default async function ProtectedPage() {
-  const user = await getUserInfo();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) {
     redirect("/auth/login");
   }
 
-  return <DashboardServer />;
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl font-semibold">Select a project</h2>
+        <p className="text-muted-foreground">
+          Choose a project from the sidebar, or create a new one to get started.
+        </p>
+      </div>
+    </div>
+  );
 }
-
-

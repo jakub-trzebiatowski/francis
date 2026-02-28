@@ -69,7 +69,7 @@ export async function createProject(name: string): Promise<Project> {
     throw new Error(error.message);
   }
 
-  revalidatePath("/protected");
+  revalidatePath("/protected", "layout");
   return project as Project;
 }
 
@@ -86,7 +86,7 @@ export async function deleteProject(projectId: string): Promise<void> {
     throw new Error(error.message);
   }
 
-  revalidatePath("/protected");
+  revalidatePath("/protected", "layout");
 }
 
 // Update project name
@@ -107,6 +107,6 @@ export async function updateProject(
     throw new Error(error.message);
   }
 
-  revalidatePath("/protected");
+  revalidatePath("/protected", "layout");
   return project as Project;
 }

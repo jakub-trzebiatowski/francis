@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
-import { createProject } from "@/lib/actions/projects";
+import { createProject, Project } from "@/lib/actions/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 
 interface AddProjectButtonProps {
-  onSuccess?: () => void;
+  onSuccess?: (project: Project) => void;
 }
 
 export function AddProjectButton({ onSuccess }: AddProjectButtonProps) {
@@ -28,10 +28,10 @@ export function AddProjectButton({ onSuccess }: AddProjectButtonProps) {
 
     startTransition(async () => {
       try {
-        await createProject(name);
+        const project = await createProject(name);
         setName("");
         setOpen(false);
-        onSuccess?.();
+        onSuccess?.(project);
       } catch (error) {
         alert(`Failed to create project: ${error}`);
       }

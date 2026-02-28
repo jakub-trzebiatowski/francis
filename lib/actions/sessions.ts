@@ -57,7 +57,7 @@ export async function createSession(
     throw new Error(error.message);
   }
 
-  revalidatePath("/protected");
+  revalidatePath("/protected", "layout");
   return session as Session;
 }
 
@@ -74,5 +74,5 @@ export async function deleteSession(sessionId: string): Promise<void> {
     throw new Error(error.message);
   }
 
-  revalidatePath("/protected");
+  revalidatePath("/protected", "layout");
 }

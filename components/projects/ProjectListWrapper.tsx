@@ -1,32 +1,46 @@
 "use client";
 
-import { useState } from "react";
-import { Project } from "@/lib/actions/projects";
+import { useRouter, usePathname } from "next/navigation";
+import { useTransition } from "react";
+import { Project, deleteProject } from "@/lib/actions/projects";
 import { ProjectList } from "./ProjectList";
 
 interface ProjectListWrapperProps {
   initialProjects: Project[];
 }
 
-export function ProjectListWrapper({
-  initialProjects,
-}: ProjectListWrapperProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    initialProjects[0]?.id || null
-  );
-  const [projects, setProjects] = useState(initialProjects);
+export function ProjectListWrapper({ initialProjects }: ProjectListWrapperProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
 
-  const handleProjectCreated = () => {
-    // The data will be revalidated by the server action
-    // For now, just refresh projects
-    window.location.reload();
+  // Derive selected project from URL: /protected/[projectId]
+  const segments = pathname.split("/");
+  const selectedProjectId =
+    segments[1] === "protected" && segments[2] ? segments[2] : null;
+
+  const handleDelete = (projectId: string) => {
+    startTransition(async () => {
+      try {
+        await deleteProject(projectId);
+        if (selectedProjectId === projectId) {
+          router.push("/protected");
+        }
+      } catch (error) {
+        alert(`Failed to delete project: ${error}`);
+      }
+    });
+  };
+
+  const handleProjectCreated = (project: Project) => {
+    router.push(`/protected/${project.id}`);
   };
 
   return (
     <ProjectList
-      projects={projects}
+      projects={initialProjects}
       selectedProjectId={selectedProjectId}
-      onSelectProject={setSelectedProjectId}
+      onDelete={handleDelete}
       onProjectCreated={handleProjectCreated}
     />
   );
