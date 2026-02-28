@@ -23,6 +23,11 @@ resource "google_cloud_run_v2_service" "console" {
         name  = "NODE_ENV"
         value = "production"
       }
+
+      env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = local.project
+      }
     }
 
     scaling {
