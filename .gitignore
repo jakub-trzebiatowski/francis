@@ -43,3 +43,9 @@ next-env.d.ts
 
 # supabase
 supabase/.temp
+
+# terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
