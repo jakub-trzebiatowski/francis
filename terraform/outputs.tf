@@ -32,3 +32,13 @@ output "worker_service_account" {
   description = "Email of the worker service account"
   value       = google_service_account.worker.email
 }
+
+output "ci_service_account" {
+  description = "Email of the CI service account (used by GitHub Actions)"
+  value       = google_service_account.ci.email
+}
+
+output "wif_provider" {
+  description = "Full resource name of the WIF provider (use as workload_identity_provider in GHA)"
+  value       = google_iam_workload_identity_pool_provider.github.name
+}

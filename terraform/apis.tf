@@ -6,6 +6,8 @@ locals {
     "artifactregistry.googleapis.com",
     "iam.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "iamcredentials.googleapis.com",    # required for WIF SA impersonation
+    "sts.googleapis.com",               # required for WIF token exchange
   ]
 }
 

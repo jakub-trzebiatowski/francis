@@ -1,0 +1,116 @@
+name: Deploy
+
+# Runs on every push to main.
+# Jobs:
+#   build-console  — builds & pushes the Next.js console image
+#   build-worker   — builds & pushes the C++ worker image
+#   terraform      — runs `terraform apply` after both images are live
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write   # required for Workload Identity Federation
+
+env:
+  PROJECT: my-litellm-proxy-qwdbagj7
+  REGION: europe-west1
+  REGISTRY: europe-west1-docker.pkg.dev/my-litellm-proxy-qwdbagj7
+
+jobs:
+  # ── Console image ────────────────────────────────────────────────────────────
+  build-console:
+    name: Build & push console
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push console
+        uses: docker/build-push-action@v5
+        with:
+          context: console
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/console/console:latest
+            ${{ env.REGISTRY }}/console/console:${{ github.sha }}
+          cache-from: type=gha,scope=console
+          cache-to: type=gha,scope=console,mode=max
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+  # ── Worker image ─────────────────────────────────────────────────────────────
+  build-worker:
+    name: Build & push worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push worker
+        uses: docker/build-push-action@v5
+        with:
+          context: worker
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/worker/worker:latest
+            ${{ env.REGISTRY }}/worker/worker:${{ github.sha }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,scope=worker,mode=max
+
+  # ── Terraform apply ──────────────────────────────────────────────────────────
+  terraform:
+    name: Terraform apply
+    runs-on: ubuntu-latest
+    needs: [build-console, build-worker]
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.7"
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve
