@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/firebase/session";
 import { getProjects } from "@/lib/actions/projects";
 import { getProjectSessions } from "@/lib/actions/sessions";
 import { SessionList } from "@/components/sessions/SessionList";
@@ -8,18 +8,10 @@ interface ProjectPageProps {
   params: Promise<{ projectId: string }>;
 }
 
-async function handleSessionCreated() {
-  "use server";
-  // revalidation is handled inside the session actions
-}
-
 export default async function ProjectPage({ params }: ProjectPageProps) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     redirect("/auth/login");
   }
 
@@ -39,7 +31,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       <div>
         <h1 className="text-3xl font-bold">{project.name}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Created {project.created_at.slice(0, 10)}
+          Created {project.createdAt.slice(0, 10)}
         </p>
       </div>
 

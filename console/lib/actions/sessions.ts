@@ -2,33 +2,39 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/firebase/session";
+import { adminDb } from "@/lib/firebase/server";
+import { FieldValue } from "firebase-admin/firestore";
 
 export type Session = {
   id: string;
-  project_id: string;
+  projectId: string;
   name: string;
-  created_at: string;
+  createdAt: string;
 };
 
 // Get all sessions for a project
 export async function getProjectSessions(
   projectId: string
 ): Promise<Session[]> {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const { data: sessions, error } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
+  const snap = await adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .doc(projectId)
+    .collection("sessions")
+    .orderBy("createdAt", "desc")
+    .get();
 
-  if (error) {
-    console.error("Error fetching sessions:", error);
-    return [];
-  }
-
-  return (sessions as Session[]) || [];
+  return snap.docs.map((doc) => ({
+    id: doc.id,
+    projectId,
+    name: doc.data().name as string,
+    createdAt: (doc.data().createdAt?.toDate() as Date)?.toISOString() ?? new Date().toISOString(),
+  }));
 }
 
 // Create a new session
@@ -36,43 +42,40 @@ export async function createSession(
   projectId: string,
   name: string
 ): Promise<Session> {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    redirect("/auth/login");
-  }
-
-  const { data: session, error } = await supabase
-    .from("sessions")
-    .insert([{ project_id: projectId, name }])
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const ref = await adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .doc(projectId)
+    .collection("sessions")
+    .add({ name, createdAt: FieldValue.serverTimestamp() });
 
   revalidatePath("/protected", "layout");
-  return session as Session;
+
+  return {
+    id: ref.id,
+    projectId,
+    name,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 // Delete a session
-export async function deleteSession(sessionId: string): Promise<void> {
-  const supabase = await createClient();
+export async function deleteSession(sessionId: string, projectId: string): Promise<void> {
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const { error } = await supabase
-    .from("sessions")
-    .delete()
-    .eq("id", sessionId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .doc(projectId)
+    .collection("sessions")
+    .doc(sessionId)
+    .delete();
 
   revalidatePath("/protected", "layout");
 }

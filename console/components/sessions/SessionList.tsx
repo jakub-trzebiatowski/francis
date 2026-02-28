@@ -22,7 +22,7 @@ export function SessionList({
   const handleDelete = (sessionId: string) => {
     startTransition(async () => {
       try {
-        await deleteSession(sessionId);
+        await deleteSession(sessionId, projectId);
         onSessionCreated?.();
       } catch (error) {
         alert(`Failed to delete session: ${error}`);

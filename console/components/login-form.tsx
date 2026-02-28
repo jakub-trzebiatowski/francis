@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { auth } from "@/lib/firebase/client";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,17 +29,20 @@ export function LoginForm({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await credential.user.getIdToken();
+
+      const res = await fetch("/api/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
       });
-      if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
+
+      if (!res.ok) throw new Error("Failed to create session");
       router.push("/protected");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");

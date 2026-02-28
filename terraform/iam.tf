@@ -41,6 +41,13 @@ resource "google_project_iam_member" "console_firestore_user" {
   member  = "serviceAccount:${google_service_account.console.email}"
 }
 
+# Create and verify Firebase session cookies
+resource "google_project_iam_member" "console_firebase_auth_admin" {
+  project = local.project
+  role    = "roles/firebaseauth.admin"
+  member  = "serviceAccount:${google_service_account.console.email}"
+}
+
 # ── Worker SA bindings ───────────────────────────────────────────────────────
 
 # Read/write Firestore documents (write volatile session state)

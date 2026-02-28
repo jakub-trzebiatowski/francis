@@ -8,6 +8,7 @@ locals {
     "cloudresourcemanager.googleapis.com",
     "iamcredentials.googleapis.com",    # required for WIF SA impersonation
     "sts.googleapis.com",               # required for WIF token exchange
+    "identitytoolkit.googleapis.com",   # Firebase Auth / Identity Platform (API only; initialised in bootstrap-terraform.sh)
   ]
 }
 

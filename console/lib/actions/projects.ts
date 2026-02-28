@@ -2,89 +2,87 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/firebase/session";
+import { adminDb } from "@/lib/firebase/server";
+import { FieldValue } from "firebase-admin/firestore";
 
 export type Project = {
   id: string;
-  user_id: string;
   name: string;
-  created_at: string;
+  createdAt: string;
 };
 
 // Get all projects for the current user
 export async function getProjects(): Promise<Project[]> {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const { data: projects, error } = await supabase
-    .from("projects")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const snap = await adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .orderBy("createdAt", "desc")
+    .get();
 
-  if (error) {
-    console.error("Error fetching projects:", error);
-    return [];
-  }
-
-  return (projects as Project[]) || [];
+  return snap.docs.map((doc) => ({
+    id: doc.id,
+    name: doc.data().name as string,
+    createdAt: (doc.data().createdAt?.toDate() as Date)?.toISOString() ?? new Date().toISOString(),
+  }));
 }
 
 // Get a single project
 export async function getProject(projectId: string): Promise<Project | null> {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const { data: project, error } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .single();
+  const doc = await adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .doc(projectId)
+    .get();
 
-  if (error) {
-    console.error("Error fetching project:", error);
-    return null;
-  }
+  if (!doc.exists) return null;
 
-  return (project as Project) || null;
+  return {
+    id: doc.id,
+    name: doc.data()!.name as string,
+    createdAt: (doc.data()!.createdAt?.toDate() as Date)?.toISOString() ?? new Date().toISOString(),
+  };
 }
 
 // Create a new project
 export async function createProject(name: string): Promise<Project> {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    redirect("/auth/login");
-  }
-
-  const { data: project, error } = await supabase
-    .from("projects")
-    .insert([{ name, user_id: user.id }])
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const ref = await adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .add({ name, createdAt: FieldValue.serverTimestamp() });
 
   revalidatePath("/protected", "layout");
-  return project as Project;
+
+  return {
+    id: ref.id,
+    name,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 // Delete a project
 export async function deleteProject(projectId: string): Promise<void> {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const { error } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", projectId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .doc(projectId)
+    .delete();
 
   revalidatePath("/protected", "layout");
 }
@@ -94,19 +92,23 @@ export async function updateProject(
   projectId: string,
   name: string
 ): Promise<Project> {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) redirect("/auth/login");
 
-  const { data: project, error } = await supabase
-    .from("projects")
-    .update({ name })
-    .eq("id", projectId)
-    .select()
-    .single();
+  const ref = adminDb()
+    .collection("users")
+    .doc(session.uid)
+    .collection("projects")
+    .doc(projectId);
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  await ref.update({ name });
 
+  const doc = await ref.get();
   revalidatePath("/protected", "layout");
-  return project as Project;
+
+  return {
+    id: doc.id,
+    name: doc.data()!.name as string,
+    createdAt: (doc.data()!.createdAt?.toDate() as Date)?.toISOString() ?? new Date().toISOString(),
+  };
 }
